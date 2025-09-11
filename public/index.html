@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script type="module">
+    import { applySavedTheme } from './js/settings.js';
+    // Apply saved theme ASAP to avoid flash of wrong theme
+    applySavedTheme();
+  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title data-i18n="appName">Expense Tracker Pro</title>
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<script type="module">
+  import i18n from './js/i18n.js';
+
+  // 1) Initialize translations using saved settings (reads from localStorage)
+  await i18n.initI18n();
+
+  // 2) Bind language selectors (in header and in settings)
+  const selectors = ['#languageSelect', '#language'];
+  selectors.forEach(sel => {
+    const element = document.querySelector(sel);
+    if (!element) return;
+
+    // Set the current value based on saved language
+    element.value = i18n.getCurrentLanguage();
+
+    // Change language on selection and save preference
+    element.addEventListener('change', (event) => {
+      i18n.setLanguage(event.target.value); // This saves to localStorage and updates the page
+    });
+  });
+</script>
+<body class="bg-light">
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container">
+      <a class="navbar-brand" href="index.html">
+        <i class="bi bi-wallet2 me-2"></i>
+        <span data-i18n="appName">Expense Tracker Pro</span>
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item">
+            <a class="nav-link active" href="index.html">
+              <i class="bi bi-speedometer2 me-1"></i>
+              <span data-i18n="dashboard">Dashboard</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="transactions.html">
+              <i class="bi bi-list-check me-1"></i>
+              <span data-i18n="transactions">Transactions</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="categories.html">
+              <i class="bi bi-tags me-1"></i>
+              <span data-i18n="categories">Categories</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="settings.html">
+              <i class="bi bi-gear me-1"></i>
+              <span data-i18n="settings">Settings</span>
+            </a>
+          </li>
+        </ul>
+        <div class="d-flex align-items-center">
+          <select id="languageSelect" class="form-select form-select-sm me-2" style="width: auto;" data-i18n="[title]language">
+            <option value="en">🇬🇧 English</option>
+            <option value="ru">🇷🇺 Русский</option>
+            <option value="et">🇪🇪 Eesti</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container my-4">
+    <!-- Dashboard -->
+    <section id="view-dashboard" class="app-view">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <div class="card shadow-sm h-100">
+            <div class="card-body">
+              <h6 class="text-muted mb-2" data-i18n="totalIncome">Total Income</h6>
+              <div class="display-6 fw-bold text-success" id="totalIncome">€0.00</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card shadow-sm h-100">
+            <div class="card-body">
+              <h6 class="text-muted mb-2" data-i18n="totalExpense">Total Expense</h6>
+              <div class="display-6 fw-bold text-danger" id="totalExpense">€0.00</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card shadow-sm h-100">
+            <div class="card-body">
+              <h6 class="text-muted mb-2" data-i18n="balance">Balance</h6>
+              <div class="display-6 fw-bold" id="balance">€0.00</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-3 mt-1">
+        <!-- Expense Categories Chart -->
+        <div class="col-lg-6">
+          <div class="card shadow-sm">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="card-title mb-0" data-i18n="expenseByCategory">Expense by Category</h5>
+              </div>
+              <div class="chart-container" style="position: relative; height: 300px;">
+                <canvas id="expenseByCategoryChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Income vs Expense Chart -->
+        <div class="col-lg-6">
+          <div class="card shadow-sm">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="card-title mb-0" data-i18n="incomeVsExpense">Income vs Expense</h5>
+              </div>
+              <div class="chart-container" style="position: relative; height: 300px;">
+                <canvas id="incomeExpenseChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Transactions -->
+      <div class="row g-3 mt-1">
+        <div class="col-12">
+          <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h5 class="mb-0" data-i18n="recentTransactions">Recent Transactions</h5>
+              <a href="transactions.html" class="btn btn-sm btn-outline-primary" data-i18n="viewAll">View All</a>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th data-i18n="date">Date</th>
+                      <th data-i18n="description">Description</th>
+                      <th data-i18n="category">Category</th>
+                      <th class="text-end" data-i18n="amount">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody id="recentTransactionsList">
+                    <!-- Will be populated by JavaScript -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="container py-4">
+    <div class="text-center text-muted small">
+      <span>&copy; 2025 <span data-i18n="appName">Expense Tracker Pro</span></span> ·
+      <a href="#" id="version" class="text-decoration-none">v1.0.0</a>
+    </div>
+  </footer>
+
+  <!-- Core Dependencies -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- App Scripts -->
+  <script type="module" src="./js/i18n.js"></script>
+  <script type="module" src="./js/api.js"></script>
+  <script type="module" src="./js/app.js"></script>
+  <script type="module" src="./js/dashboard.js"></script>
+
+  <!-- Initialize App -->
+  <script type="module">
+  import { initApp } from './js/app.js';
+  import { initDashboard } from './js/dashboard.js';
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    await initApp();       
+    await initDashboard(); 
+  });
+  </script>
+</body>
+</html>

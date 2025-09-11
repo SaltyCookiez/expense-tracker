@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script type="module">
+    import { applySavedTheme } from './js/settings.js';
+    // Apply saved theme ASAP to avoid flash of wrong theme
+    applySavedTheme();
+  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title data-i18n="settings">Settings - Expense Tracker Pro</title>
+
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="css/styles.css" />
+
+  <style>
+    .settings-section {
+      margin-bottom: 2rem;
+      padding: 1.5rem;
+      background-color: #fff;
+      border-radius: 0.5rem;
+      box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+    .settings-section h3 {
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid #dee2e6;
+    }
+    .backup-info {
+      background-color: #f8f9fa;
+      padding: 1rem;
+      border-radius: 0.25rem;
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+
+<body class="bg-light">
+  <!-- Top Nav -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container">
+      <a class="navbar-brand" href="index.html">
+        <i class="bi bi-wallet2 me-2"></i>
+        <span data-i18n="appName">Expense Tracker Pro</span>
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="index.html">
+              <i class="bi bi-speedometer2 me-1"></i>
+              <span data-i18n="dashboard">Dashboard</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="transactions.html">
+              <i class="bi bi-list-check me-1"></i>
+              <span data-i18n="transactions">Transactions</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="categories.html">
+              <i class="bi bi-tags me-1"></i>
+              <span data-i18n="categories">Categories</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active" href="settings.html">
+              <i class="bi bi-gear me-1"></i>
+              <span data-i18n="settings">Settings</span>
+            </a>
+          </li>
+        </ul>
+
+        <!-- Header language selector -->
+        <div class="d-flex align-items-center">
+          <select id="languageSelect" class="form-select form-select-sm me-2" style="width: auto;" data-i18n="[title]language">
+            <option value="en">🇬🇧 English</option>
+            <option value="ru">🇷🇺 Русский</option>
+            <option value="et">🇪🇪 Eesti</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main class="container my-4">
+    <h2 class="mb-4" data-i18n="settings">Settings</h2>
+
+    <!-- Application Settings -->
+    <div class="settings-section">
+      <h3><i class="bi bi-gear me-2"></i><span data-i18n="appSettings">Application Settings</span></h3>
+
+      <form id="settingsForm" class="row g-3">
+        <!-- Language (3 active + “coming soon” disabled) -->
+        <div class="col-md-6">
+          <label for="language" class="form-label" data-i18n="language">Language</label>
+          <select class="form-select" id="language" name="language" required>
+            <option value="en">English</option>
+            <option value="ru">Русский</option>
+            <option value="et">Eesti</option>
+            <option value="es" disabled>Español (Coming soon)</option>
+            <option value="de" disabled>Deutsch (Coming soon)</option>
+            <option value="fr" disabled>Français (Coming soon)</option>
+            <option value="it" disabled>Italiano (Coming soon)</option>
+            <option value="pt" disabled>Português (Coming soon)</option>
+            <option value="zh" disabled>中文 (Coming soon)</option>
+            <option value="ja" disabled>日本語 (Coming soon)</option>
+            <option value="ko" disabled>한국어 (Coming soon)</option>
+          </select>
+        </div>
+
+        <!-- Currency (EUR / USD / RUB only) -->
+        <div class="col-md-6">
+          <label for="currency" class="form-label" data-i18n="currency">Currency</label>
+          <select class="form-select" id="currency" name="currency" required>
+            <option value="EUR">EUR (€)</option>
+            <option value="USD">USD ($)</option>
+            <option value="RUB">RUB (₽)</option>
+          </select>
+        </div>
+
+        <!-- Date Format -->
+        <div class="col-md-6">
+          <label for="dateFormat" class="form-label" data-i18n="dateFormat">Date Format</label>
+          <select class="form-select" id="dateFormat" name="dateFormat" required>
+            <option value="YYYY-MM-DD">YYYY-MM-DD (2025-12-31)</option>
+            <option value="DD.MM.YYYY">DD.MM.YYYY (31.12.2025)</option>
+            <option value="MM/DD/YYYY">MM/DD/YYYY (12/31/2025)</option>
+          </select>
+        </div>
+
+        <!-- Decimal Places (0–4) -->
+        <div class="col-md-6">
+          <label for="decimalPlaces" class="form-label" data-i18n="decimalPlaces">Decimal Places</label>
+          <select id="decimalPlaces" class="form-select" required>
+            <option value="0" data-i18n="noDecimals">0</option>
+            <option value="1">1</option>
+            <option value="2" data-i18n="twoDecimals">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+          </select>
+          <div class="form-text">(0–4 is typical)</div>
+        </div>
+
+        <!-- Theme (optional keep) -->
+        <div class="col-md-6">
+          <label for="theme" class="form-label" data-i18n="theme">Theme</label>
+          <select id="theme" class="form-select">
+            <option value="system" data-i18n="system">System</option>
+            <option value="light" data-i18n="light">Light</option>
+            <option value="dark" data-i18n="dark">Dark</option>
+          </select>
+        </div>
+
+        <div class="col-12 d-flex gap-2">
+          <button type="submit" class="btn btn-primary" data-i18n="saveChanges">Save Changes</button>
+          <button type="button" id="resetBtn" class="btn btn-outline-secondary" data-i18n="resetToDefaults">Reset to Defaults</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Data Management -->
+    <div class="settings-section">
+      <h3><i class="bi bi-database me-2"></i><span data-i18n="dataManagement">Data Management</span></h3>
+
+      <div class="d-flex flex-wrap gap-2 align-items-center">
+        <button id="exportJsonBtn" class="btn btn-outline-secondary">
+          <i class="bi bi-download me-1"></i>
+          <span data-i18n="exportData">Export Data</span>
+        </button>
+
+        <label class="btn btn-outline-primary mb-0" for="importFile">
+          <i class="bi bi-upload me-1"></i>
+          <span data-i18n="importData">Import Data</span>
+        </label>
+        <input id="importFile" type="file" accept="application/json" class="d-none" />
+      </div>
+
+      <div class="backup-info mt-3">
+        <h6><i class="bi bi-info-circle me-2"></i><span data-i18n="backupInfo">Backup Information</span></h6>
+        <p class="mb-1"><strong data-i18n="lastBackup">Last Backup</strong>: —</p>
+        <p class="mb-0"><strong data-i18n="backupSize">Backup Size</strong>: —</p>
+      </div>
+    </div>
+
+    <!-- Account Settings (placeholder) -->
+    <div class="settings-section">
+      <h3><i class="bi bi-person me-2"></i><span data-i18n="accountSettings">Account Settings</span></h3>
+      <form>
+        <div class="row g-3">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label">1 EUR = USD</label>
+              <input type="number" class="form-control" id="fxUsd" step="0.0001" min="0.0001">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">1 EUR = RUB</label>
+              <input type="number" class="form-control" id="fxRub" step="0.0001" min="0.0001">
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label for="email" class="form-label" data-i18n="emailAddress">Email Address</label>
+            <input type="email" class="form-control" id="email" value="user@example.com" disabled>
+          </div>
+          <div class="col-md-6">
+            <label for="timezone" class="form-label" data-i18n="timeZone">Time Zone</label>
+            <select class="form-select" id="timezone" disabled>
+              <option value="UTC">(UTC) Coordinated Universal Time</option>
+              <option value="Europe/Tallinn">(UTC+02:00) Europe/Tallinn</option>
+              <option value="America/Los_Angeles">(UTC-08:00) Pacific Time</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <button type="button" class="btn btn-primary" disabled data-i18n="saveChanges">Save Changes</button>
+            <div class="form-text mt-2">Account settings management coming soon</div>
+          </div>
+        </div>
+      </form>
+    </div>
+  </main>
+
+  <!-- Toast -->
+  <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+    <div id="toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="toast-header">
+        <strong class="me-auto" id="toastTitle" data-i18n="notification">Notification</strong>
+        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+      <div class="toast-body" id="toastMessage"></div>
+    </div>
+  </div>
+
+  <!-- Bootstrap Bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Page Script -->
+  <script type="module">
+    // Use relative paths from this file
+    import i18n from './js/i18n.js';
+    import { initLanguageSelector } from './js/nav.js';
+    import { initApp } from './js/app.js';
+    import { initSettings } from './js/settings.js';
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        // 1) Apply saved language and translate the page
+        await i18n.initI18n();
+        // 2) Bind header language selector
+        initLanguageSelector();
+        // 3) Load global state
+        await initApp();
+        // 4) Init this page (save/reset, export/import)
+        await initSettings();
+        // 5) Translate any dynamic elements
+        i18n.updatePageTranslations();
+      } catch (err) {
+        console.error('Settings init error:', err);
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'alert alert-danger m-3';
+        errorDiv.textContent = 'Failed to initialize the settings page.';
+        document.querySelector('main')?.prepend(errorDiv);
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script type="module">
+    import { applySavedTheme } from './js/settings.js';
+    // Apply saved theme ASAP to avoid flash of wrong theme
+    applySavedTheme();
+  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title data-i18n="transactions">Transactions - Expense Tracker Pro</title>
+  
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+  <!-- Custom styles -->
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body class="bg-light">
+  <!-- Top Navigation -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container">
+      <a class="navbar-brand" href="index.html">
+        <i class="bi bi-wallet2 me-2"></i>
+        <span data-i18n="appName">Expense Tracker Pro</span>
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="index.html">
+              <i class="bi bi-speedometer2 me-1"></i>
+              <span data-i18n="dashboard">Dashboard</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active" href="transactions.html">
+              <i class="bi bi-list-check me-1"></i>
+              <span data-i18n="transactions">Transactions</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="categories.html">
+              <i class="bi bi-tags me-1"></i>
+              <span data-i18n="categories">Categories</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="settings.html">
+              <i class="bi bi-gear me-1"></i>
+              <span data-i18n="settings">Settings</span>
+            </a>
+          </li>
+        </ul>
+        <div class="d-flex align-items-center">
+          <!-- Language selector -->
+          <select id="languageSelect" class="form-select form-select-sm me-2" style="width: auto;" data-i18n="[title]language">
+            <option value="en">🇬🇧 English</option>
+            <option value="ru">🇷🇺 Русский</option>
+            <option value="et">🇪🇪 Eesti</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="container my-4">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+      <h1 class="h2" data-i18n="transactions">Transactions</h1>
+      <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="exportBtn">
+            <i class="bi bi-download me-1"></i> <span data-i18n="export">Export</span>
+          </button>
+        </div>
+        <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#transactionModal">
+          <i class="bi bi-plus-lg me-1"></i> <span data-i18n="addTransaction">Add Transaction</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Filter Section -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5 class="mb-0" data-i18n="filters">Filters</h5>
+      </div>
+      <div class="card-body">
+        <form id="filterForm">
+          <div class="row g-3">
+            <div class="col-md-3">
+              <label for="filterType" class="form-label" data-i18n="type">Type</label>
+              <select class="form-select" id="filterType" name="type">
+                <option value="" data-i18n="allTypes">All Types</option>
+                <option value="income" data-i18n="income">Income</option>
+                <option value="expense" data-i18n="expense">Expense</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label for="filterCategory" class="form-label" data-i18n="category">Category</label>
+              <select class="form-select" id="filterCategory" name="category">
+                <option value="" data-i18n="allCategories">All Categories</option>
+                <!-- Categories populated dynamically -->
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label for="filterFrom" class="form-label" data-i18n="fromDate">From Date</label>
+              <input type="date" class="form-control" id="filterFrom" name="startDate">
+            </div>
+            <div class="col-md-3">
+              <label for="filterTo" class="form-label" data-i18n="toDate">To Date</label>
+              <div class="input-group">
+                <input type="date" class="form-control" id="filterTo" name="endDate">
+                <button class="btn btn-outline-secondary" type="reset" id="resetFilters">
+                  <i class="bi bi-x-lg"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Transactions Table -->
+    <div class="card">
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-hover" id="transactionsTable">
+            <thead>
+              <tr>
+                <th data-i18n="date">Date</th>
+                <th data-i18n="description">Description</th>
+                <th data-i18n="category">Category</th>
+                <th class="text-end" data-i18n="amount">Amount</th>
+                <th data-i18n="note">Note</th>
+                <th class="text-end" data-i18n="actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Populated by JavaScript -->
+              <tr>
+                <td colspan="6" class="text-center py-4">
+                  <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Add/Edit Transaction Modal -->
+  <div class="modal fade" id="transactionModal" tabindex="-1" aria-labelledby="transactionModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="transactionModalLabel" data-i18n="addTransaction">Add Transaction</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form id="transactionForm">
+          <div class="modal-body">
+            <div class="mb-3">
+              <label for="type" class="form-label" data-i18n="type">Type</label>
+              <select class="form-select" id="type" name="type" required>
+                <option value="expense" data-i18n="expense">Expense</option>
+                <option value="income" data-i18n="income">Income</option>
+              </select>
+            </div>
+            <!-- Amount -->
+             <div class="mb-3">
+              <label for="amount" class="form-label" data-i18n="amount">Amount</label>
+              <div class="input-group">
+                <!-- symbol updates to selected tx currency -->
+                 <span class="input-group-text" id="amountSymbol">$</span>
+                 <input type="number" class="form-control" id="amount" name="amount" step="0.01" min="0.01" required>
+                 <!-- transaction currency selector -->
+                  <select class="form-select" id="txCurrency" name="currency" style="max-width:120px">
+                    <option value="EUR">EUR</option>
+                    <option value="USD">USD</option>
+                    <option value="RUB">RUB</option>
+                  </select>
+                </div>
+                <div class="form-text">This currency belongs to the transaction (will be converted to UI currency on display).</div>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label for="category" class="form-label" data-i18n="category">Category</label>
+              <select class="form-select" id="category" name="category" required>
+                <option value="" data-i18n="selectCategory">Select a category</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label for="date" class="form-label" data-i18n="date">Date</label>
+              <input type="date" class="form-control" id="date" name="date" required>
+            </div>
+            <div class="mb-3">
+              <label for="description" class="form-label" data-i18n="description">Description</label>
+              <input type="text" class="form-control" id="description" name="description">
+            </div>
+            <div class="mb-3">
+              <label for="note" class="form-label" data-i18n="note">Note</label>
+              <textarea class="form-control" id="note" name="note" rows="2"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="cancel">Cancel</button>
+            <button type="submit" class="btn btn-primary" data-i18n="save">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap Bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- SheetJS (XLSX) – exactly one include, global XLSX object -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js"></script>
+
+  <!-- Application Scripts -->
+  <script type="module">
+    // Import modules used on this page
+    import i18n from './js/i18n.js';
+    import { initLanguageSelector } from './js/nav.js';
+    import { initApp } from './js/app.js';
+    import { initializeTransactions, initTransactionModal } from './js/transactions.js';
+    // NOTE: Do NOT add your own exportBtn click handler here.
+    // transactions.js already wires #exportBtn to export the currently filtered rows.
+
+    // Initialize after DOM is ready
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        // 1) Load saved language and translate the page
+        await i18n.initI18n();
+
+        // 2) Activate language dropdown (persists to localStorage + live updates)
+        initLanguageSelector();
+
+        // 3) Load global state (settings, categories, transactions)
+        await initApp();
+
+        // 4) Transactions table, live filters, Edit/Delete, Export button
+        await initializeTransactions();
+
+        // 5) Add/Edit modal wiring (type → categories, validation, save)
+        await initTransactionModal();
+
+        // 6) Make sure any newly injected text is translated
+        i18n.updatePageTranslations();
+      } catch (err) {
+        console.error('Init error:', err);
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'alert alert-danger m-3';
+        errorDiv.textContent = 'Failed to initialize the application. Please refresh the page.';
+        document.querySelector('main')?.prepend(errorDiv);
+      }
+    });
+  </script>
+</body>
+</html>
