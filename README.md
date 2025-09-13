@@ -87,26 +87,17 @@ npm start
 Open http://localhost:3000
  in your browser.
 
-📸 Suggested Screenshots
+🧪 Testing Checklist:
 
-Dashboard with totals and charts
+| Feature            | Steps                       | Expected Result                    |
+| ------------------ | --------------------------- | ---------------------------------- |
+| Add transaction    | Fill modal, click Save      | Transaction appears, charts update |
+| Edit transaction   | Click Edit → modify → Save  | Row updated, charts recalc         |
+| Delete transaction | Click Delete                | Row removed, charts recalc         |
+| API request check  | Open DevTools → Network tab | CRUD requests sent to backend API  |
+| Filters            | Set type/category/date      | Table shows only matching entries  |
+| Categories CRUD    | Add or delete category      | Appears/Disappears instantly       |
 
-Pie chart of expenses by category
-
-Line chart of income vs expenses
-
-Transactions table with filters
-
-API response example in browser DevTools
-
-🧪 Testing Checklist
-Feature	Steps	Expected Result
-Add transaction	Fill modal, click Save	Transaction appears, charts update
-Edit transaction	Click Edit → modify → Save	Row updated, charts recalc
-Delete transaction	Click Delete	Row removed, charts recalc
-API request check	Open DevTools → Network tab	CRUD requests sent to backend API
-Filters	Set type/category/date	Table shows only matching entries
-Categories CRUD	Add or delete category	Appears/Disappears instantly
 🔮 Future Improvements
 
 Migration from JSON storage to SQL/NoSQL database
@@ -118,10 +109,13 @@ Progressive Web App (PWA) support
 Accessibility & mobile optimization
 
 🛠 Tech Stack
-Tech	Usage
-Node.js + Express	Backend API, routing
-HTML5 + Bootstrap 5	Responsive frontend layout
-JavaScript ES Modules	Modular, clean code organization
-Chart.js	Interactive charts
-SheetJS (xlsx.js)	Excel export support
-REST API	CRUD operations for transactions
+
+| Tech                      | Usage                            |
+| ------------------------- | -------------------------------- |
+| **Node.js + Express**     | Backend API, routing             |
+| **HTML5 + Bootstrap 5**   | Responsive frontend layout       |
+| **JavaScript ES Modules** | Modular, clean code organization |
+| **Chart.js**              | Interactive charts               |
+| **SheetJS (xlsx.js)**     | Excel export support             |
+| **REST API**              | CRUD operations for transactions |
+
