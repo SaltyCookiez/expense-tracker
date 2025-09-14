@@ -89,14 +89,14 @@ Open http://localhost:3000
 
 🧪 Testing Checklist:
 
-| Feature            | Steps                       | Expected Result                    |
-| ------------------ | --------------------------- | ---------------------------------- |
-| Add transaction    | Fill modal, click Save      | Transaction appears, charts update |
-| Edit transaction   | Click Edit → modify → Save  | Row updated, charts recalc         |
-| Delete transaction | Click Delete                | Row removed, charts recalc         |
-| API request check  | Open DevTools → Network tab | CRUD requests sent to backend API  |
-| Filters            | Set type/category/date      | Table shows only matching entries  |
-| Categories CRUD    | Add or delete category      | Appears/Disappears instantly       |
+| Feature            | Steps                       | Expected Result                    | Result                              |
+| ------------------ | --------------------------- | ---------------------------------- | ----------------------------------- |
+| Add transaction    | Fill modal, click Save      | Transaction appears, charts update | Works: record is created, charts update correctly |
+| Edit transaction   | Click Edit → modify → Save  | Row updated, charts recalc         | Works: row is updated, charts are recalculated |
+| Delete transaction | Click Delete                | Row removed, charts recalc         | Works: row is removed, charts are recalculated |
+| API request check  | Open DevTools → Network tab | CRUD requests sent to backend API  | Requests are sent and processed successfully |
+| Filters            | Set type/category/date      | Table shows only matching entries  | Works: filters correctly limit the list |
+| Categories CRUD    | Add or delete category      | Appears/Disappears instantly       | Works: categories add/remove instantly |
 
 🔮 Future Improvements
 
