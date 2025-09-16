@@ -172,37 +172,41 @@
                 <option value="income" data-i18n="income">Income</option>
               </select>
             </div>
+
             <!-- Amount -->
              <div class="mb-3">
               <label for="amount" class="form-label" data-i18n="amount">Amount</label>
               <div class="input-group">
-                <!-- symbol updates to selected tx currency -->
-                 <span class="input-group-text" id="amountSymbol">$</span>
-                 <input type="number" class="form-control" id="amount" name="amount" step="0.01" min="0.01" required>
-                 <!-- transaction currency selector -->
-                  <select class="form-select" id="txCurrency" name="currency" style="max-width:120px">
-                    <option value="EUR">EUR</option>
-                    <option value="USD">USD</option>
-                    <option value="RUB">RUB</option>
-                  </select>
-                </div>
-                <div class="form-text">This currency belongs to the transaction (will be converted to UI currency on display).</div>
+                <span class="input-group-text" id="amountSymbol">$</span>
+                <input type="number" class="form-control" id="amount" name="amount" step="0.01" min="0.01" required>
+                <select class="form-select" id="txCurrency" name="currency" style="max-width:120px">
+                  <option value="EUR">EUR</option>
+                  <option value="USD">USD</option>
+                  <option value="RUB">RUB</option>
+                </select>
+              </div>
+              <div class="form-text">
+                This currency belongs to the transaction (will be converted to UI currency on display).
               </div>
             </div>
+
             <div class="mb-3">
               <label for="category" class="form-label" data-i18n="category">Category</label>
               <select class="form-select" id="category" name="category" required>
                 <option value="" data-i18n="selectCategory">Select a category</option>
               </select>
             </div>
+
             <div class="mb-3">
               <label for="date" class="form-label" data-i18n="date">Date</label>
               <input type="date" class="form-control" id="date" name="date" required>
             </div>
+
             <div class="mb-3">
               <label for="description" class="form-label" data-i18n="description">Description</label>
               <input type="text" class="form-control" id="description" name="description">
             </div>
+
             <div class="mb-3">
               <label for="note" class="form-label" data-i18n="note">Note</label>
               <textarea class="form-control" id="note" name="note" rows="2"></textarea>

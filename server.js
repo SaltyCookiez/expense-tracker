@@ -1,197 +1,182 @@
+// server-mysql.mjs
+import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import cors from 'cors';
 import { v4 as uuidv4 } from 'uuid';
-import fs from 'fs/promises';
+import { pool } from './db.js';
+import dotenv from 'dotenv';
 
-// Initialize express app
+dotenv.config();
+
+// Init
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Get __dirname equivalent in ES modules
+// __dirname In ES-Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Enable CORS for all routes
+// CORS
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
-
-// Handle preflight requests
 app.options('*', cors());
 
-// Middleware
+// JSON
 app.use(express.json());
 
-// Serve static files from the public directory
+// Static
 app.use(express.static(path.join(__dirname, 'public'), {
   extensions: ['html', 'htm'],
   index: false
 }));
 
-// Data file path
-const DATA_FILE = path.join(__dirname, 'data.json');
-
-// Helper function to read data from file
-async function readData() {
+// Health
+app.get('/api/health', async (req, res) => {
   try {
-    const fileContent = await fs.readFile(DATA_FILE, 'utf8');
-    return JSON.parse(fileContent);
-  } catch (error) {
-    console.error('Error reading data file:', error);
-    // Return default data structure if file doesn't exist or is invalid
-    return {
-      transactions: [],
-      categories: [],
-      settings: {
-        currency: 'USD',
-        dateFormat: 'YYYY-MM-DD',
-        language: 'en',
-        decimalPlaces: 2
-      },
-      nextId: 1
-    };
+    const [rows] = await pool.query('SELECT 1 AS ok');
+    res.json({ status: 'ok', db: rows[0].ok === 1, timestamp: new Date().toISOString() });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ status: 'error', error: 'DB connection failed' });
   }
-}
-
-// Helper function to write data to file
-async function writeData(data) {
-  try {
-    await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
-  } catch (error) {
-    console.error('Error writing to data file:', error);
-    throw new Error('Failed to save data');
-  }
-}
-
-// Initialize data
-let data = await readData();
-
-// Ensure required data structures exist
-function ensureDataStructure() {
-  if (!data.transactions) data.transactions = [];
-  if (!data.categories) data.categories = [];
-  if (!data.settings) {
-    data.settings = {
-      currency: 'USD',
-      dateFormat: 'YYYY-MM-DD',
-      language: 'en',
-      decimalPlaces: 2
-    };
-  }
-  if (!data.nextId) data.nextId = 1;
-}
-
-// Ensure data structure on startup
-ensureDataStructure();
-
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// API Routes
+/* -------------------- TRANSACTIONS -------------------- */
 
-// Transactions
+// GET /api/transactions?type=&category=&startDate=&endDate=
 app.get('/api/transactions', async (req, res) => {
   try {
     const { type, category, startDate, endDate } = req.query;
-    let transactions = [...data.transactions];
+    const clauses = [];
+    const params = {};
 
-    // Apply filters
-    if (type) {
-      transactions = transactions.filter(tx => tx.type === type);
-    }
-    if (category) {
-      transactions = transactions.filter(tx => tx.category === category);
-    }
-    if (startDate) {
-      transactions = transactions.filter(tx => new Date(tx.date) >= new Date(startDate));
-    }
-    if (endDate) {
-      transactions = transactions.filter(tx => new Date(tx.date) <= new Date(endDate));
-    }
+    if (type) { clauses.push('type = :type'); params.type = type; }
+    if (category) { clauses.push('category = :category'); params.category = category; }
+    if (startDate) { clauses.push('date >= :startDate'); params.startDate = startDate; }
+    if (endDate) { clauses.push('date <= :endDate'); params.endDate = endDate; }
 
-    res.json(transactions);
+    const where = clauses.length ? 'WHERE ' + clauses.join(' AND ') : '';
+    const [rows] = await pool.query(
+      `SELECT id, type, amount, category, DATE_FORMAT(date, '%Y-%m-%d') AS date,
+              note, description, createdAt, updatedAt
+       FROM transactions
+       ${where}
+       ORDER BY date DESC, createdAt DESC`,
+      params
+    );
+    res.json(rows);
   } catch (error) {
     console.error('Error fetching transactions:', error);
     res.status(500).json({ error: 'Failed to fetch transactions' });
   }
 });
 
+// POST /api/transactions
 app.post('/api/transactions', async (req, res) => {
   try {
     const { amount, type, category, date, description, note } = req.body;
-    
-    // Validate required fields
-    if (!amount || !type || !category) {
+
+    if (amount == null || !type || !category) {
       return res.status(400).json({ error: 'Amount, type, and category are required' });
     }
 
-    const transaction = {
-      id: uuidv4(),
-      amount: parseFloat(amount),
-      type,
-      category,
-      date: date || new Date().toISOString().split('T')[0],
-      description: description || '',
-      note: note || '',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
+    // Consider checking FK
+    const [cat] = await pool.query('SELECT id FROM categories WHERE id = :id', { id: category });
+    if (cat.length === 0) {
+      return res.status(400).json({ error: 'Category does not exist' });
+    }
 
-    data.transactions.push(transaction);
-    await writeData(data);
-    
-    res.status(201).json(transaction);
+    const id = uuidv4();
+    const isoDate = (date && String(date).slice(0,10)) || new Date().toISOString().slice(0,10);
+
+    await pool.execute(
+      `INSERT INTO transactions
+       (id, type, amount, category, date, note, description, createdAt, updatedAt)
+       VALUES (:id, :type, :amount, :category, :date, :note, :description, NOW(), NOW())`,
+      {
+        id,
+        type,
+        amount: Number(amount),
+        category,
+        date: isoDate,
+        note: note ?? '',
+        description: description ?? ''
+      }
+    );
+
+    const [rows] = await pool.query(
+      `SELECT id, type, amount, category, DATE_FORMAT(date, '%Y-%m-%d') AS date,
+              note, description, createdAt, updatedAt
+       FROM transactions WHERE id = :id`,
+      { id }
+    );
+
+    res.status(201).json(rows[0]);
   } catch (error) {
     console.error('Error creating transaction:', error);
     res.status(500).json({ error: 'Failed to create transaction' });
   }
 });
 
+// PUT /api/transactions/:id
 app.put('/api/transactions/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const updates = req.body;
-    
-    const index = data.transactions.findIndex(tx => tx.id === id);
-    if (index === -1) {
-      return res.status(404).json({ error: 'Transaction not found' });
+    const { amount, type, category, date, description, note } = req.body;
+
+    // Check if Transaction exists
+    const [exists] = await pool.query('SELECT 1 FROM transactions WHERE id = :id', { id });
+    if (exists.length === 0) return res.status(404).json({ error: 'Transaction not found' });
+
+    // If category changes test FK
+    if (category) {
+      const [cat] = await pool.query('SELECT 1 FROM categories WHERE id = :id', { id: category });
+      if (cat.length === 0) return res.status(400).json({ error: 'Category does not exist' });
     }
 
-    // Update only allowed fields
-    const updatedTransaction = {
-      ...data.transactions[index],
-      ...updates,
-      updatedAt: new Date().toISOString()
-    };
+    // Dynamic set
+    const sets = [];
+    const params = { id };
 
-    data.transactions[index] = updatedTransaction;
-    await writeData(data);
-    
-    res.json(updatedTransaction);
+    if (amount != null) { sets.push('amount = :amount'); params.amount = Number(amount); }
+    if (type) { sets.push('type = :type'); params.type = type; }
+    if (category) { sets.push('category = :category'); params.category = category; }
+    if (date) { sets.push('date = :date'); params.date = String(date).slice(0,10); }
+    if (description != null) { sets.push('description = :description'); params.description = description; }
+    if (note != null) { sets.push('note = :note'); params.note = note; }
+
+    if (sets.length === 0) return res.status(400).json({ error: 'No fields to update' });
+
+    sets.push('updatedAt = NOW()');
+
+    await pool.execute(
+      `UPDATE transactions SET ${sets.join(', ')} WHERE id = :id`, params
+    );
+
+    const [rows] = await pool.query(
+      `SELECT id, type, amount, category, DATE_FORMAT(date, '%Y-%m-%d') AS date,
+              note, description, createdAt, updatedAt
+       FROM transactions WHERE id = :id`,
+      { id }
+    );
+    res.json(rows[0]);
   } catch (error) {
     console.error('Error updating transaction:', error);
     res.status(500).json({ error: 'Failed to update transaction' });
   }
 });
 
+// DELETE /api/transactions/:id
 app.delete('/api/transactions/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const initialLength = data.transactions.length;
-    
-    data.transactions = data.transactions.filter(tx => tx.id !== id);
-    
-    if (data.transactions.length === initialLength) {
-      return res.status(404).json({ error: 'Transaction not found' });
-    }
-    
-    await writeData(data);
+    const [result] = await pool.execute('DELETE FROM transactions WHERE id = :id', { id });
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Transaction not found' });
     res.status(204).send();
   } catch (error) {
     console.error('Error deleting transaction:', error);
@@ -199,10 +184,15 @@ app.delete('/api/transactions/:id', async (req, res) => {
   }
 });
 
-// Categories
+/* -------------------- CATEGORIES -------------------- */
+
 app.get('/api/categories', async (req, res) => {
   try {
-    res.json(data.categories || []);
+    const [rows] = await pool.query(
+      `SELECT id, name, type, color, updatedAt
+       FROM categories ORDER BY name ASC`
+    );
+    res.json(rows);
   } catch (error) {
     console.error('Error fetching categories:', error);
     res.status(500).json({ error: 'Failed to fetch categories' });
@@ -211,30 +201,29 @@ app.get('/api/categories', async (req, res) => {
 
 app.post('/api/categories', async (req, res) => {
   try {
-    const { name, type, color } = req.body;
-    
+    const { id, name, type, color } = req.body;
+
     if (!name || !type) {
       return res.status(400).json({ error: 'Name and type are required' });
     }
-    
-    // Check if category already exists
-    if (data.categories.some(cat => cat.name.toLowerCase() === name.toLowerCase())) {
-      return res.status(400).json({ error: 'Category with this name already exists' });
-    }
-    
-    const newCategory = {
-      id: uuidv4(),
-      name: name.trim(),
-      type,
-      color: color || `#${Math.floor(Math.random()*16777215).toString(16)}`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    
-    data.categories.push(newCategory);
-    await writeData(data);
-    
-    res.status(201).json(newCategory);
+
+    const catId = (id ?? name).toString().trim().toLowerCase();
+
+    // Checking Unique
+    const [exists] = await pool.query('SELECT 1 FROM categories WHERE id = :id', { id: catId });
+    if (exists.length) return res.status(400).json({ error: 'Category with this id/name already exists' });
+
+    await pool.execute(
+      `INSERT INTO categories (id, name, type, color, updatedAt)
+       VALUES (:id, :name, :type, :color, NOW())`,
+      { id: catId, name: name.trim(), type, color: color || '#6c757d' }
+    );
+
+    const [rows] = await pool.query(
+      `SELECT id, name, type, color, updatedAt FROM categories WHERE id = :id`,
+      { id: catId }
+    );
+    res.status(201).json(rows[0]);
   } catch (error) {
     console.error('Error creating category:', error);
     res.status(500).json({ error: 'Failed to create category' });
@@ -245,35 +234,24 @@ app.put('/api/categories/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { name, type, color } = req.body;
-    
-    if (!name || !type) {
-      return res.status(400).json({ error: 'Name and type are required' });
-    }
-    
-    const index = data.categories.findIndex(cat => cat.id === id);
-    if (index === -1) {
-      return res.status(404).json({ error: 'Category not found' });
-    }
-    
-    // Check if another category with the same name exists
-    if (data.categories.some((cat, i) => 
-      i !== index && cat.name.toLowerCase() === name.toLowerCase()
-    )) {
-      return res.status(400).json({ error: 'Another category with this name already exists' });
-    }
-    
-    // Update category
-    data.categories[index] = {
-      ...data.categories[index],
-      name: name.trim(),
-      type,
-      color: color || data.categories[index].color,
-      updatedAt: new Date().toISOString()
-    };
-    
-    await writeData(data);
-    
-    res.json(data.categories[index]);
+    if (!name || !type) return res.status(400).json({ error: 'Name and type are required' });
+
+    // Exists?
+    const [exists] = await pool.query('SELECT 1 FROM categories WHERE id = :id', { id });
+    if (exists.length === 0) return res.status(404).json({ error: 'Category not found' });
+
+    await pool.execute(
+      `UPDATE categories
+       SET name = :name, type = :type, color = :color, updatedAt = NOW()
+       WHERE id = :id`,
+      { id, name: name.trim(), type, color: color || '#6c757d' }
+    );
+
+    const [rows] = await pool.query(
+      `SELECT id, name, type, color, updatedAt FROM categories WHERE id = :id`,
+      { id }
+    );
+    res.json(rows[0]);
   } catch (error) {
     console.error('Error updating category:', error);
     res.status(500).json({ error: 'Failed to update category' });
@@ -283,23 +261,17 @@ app.put('/api/categories/:id', async (req, res) => {
 app.delete('/api/categories/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const initialLength = data.categories.length;
-    
-    // Check if category is used in transactions
-    const isUsed = data.transactions.some(tx => tx.category === id);
-    if (isUsed) {
-      return res.status(400).json({ 
-        error: 'Cannot delete category that is being used by transactions' 
-      });
+
+    const [used] = await pool.query(
+      'SELECT 1 FROM transactions WHERE category = :id LIMIT 1', { id }
+    );
+    if (used.length) {
+      return res.status(400).json({ error: 'Cannot delete category that is used by transactions' });
     }
-    
-    data.categories = data.categories.filter(cat => cat.id !== id);
-    
-    if (data.categories.length === initialLength) {
-      return res.status(404).json({ error: 'Category not found' });
-    }
-    
-    await writeData(data);
+
+    const [result] = await pool.execute('DELETE FROM categories WHERE id = :id', { id });
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Category not found' });
+
     res.status(204).send();
   } catch (error) {
     console.error('Error deleting category:', error);
@@ -307,10 +279,12 @@ app.delete('/api/categories/:id', async (req, res) => {
   }
 });
 
-// Settings
+/* -------------------- SETTINGS -------------------- */
+
 app.get('/api/settings', async (req, res) => {
   try {
-    res.json(data.settings || {});
+    const [rows] = await pool.query('SELECT * FROM settings ORDER BY id ASC LIMIT 1');
+    res.json(rows[0] ?? {});
   } catch (error) {
     console.error('Error fetching settings:', error);
     res.status(500).json({ error: 'Failed to fetch settings' });
@@ -319,46 +293,55 @@ app.get('/api/settings', async (req, res) => {
 
 app.put('/api/settings', async (req, res) => {
   try {
-    const updates = req.body;
-    
-    // Validate updates
-    if (updates.currency && typeof updates.currency !== 'string') {
-      return res.status(400).json({ error: 'Invalid currency' });
+    const { currency, language, decimalPlaces, decimalPrecision, dateFormat, theme } = req.body;
+
+    const [existing] = await pool.query('SELECT id FROM settings ORDER BY id ASC LIMIT 1');
+    if (existing.length === 0) {
+      await pool.execute(
+        `INSERT INTO settings (currency, language, decimalPlaces, decimalPrecision, dateFormat, theme, updatedAt)
+         VALUES (:currency, :language, :decimalPlaces, :decimalPrecision, :dateFormat, :theme, NOW())`,
+        { currency, language, decimalPlaces, decimalPrecision, dateFormat, theme }
+      );
+    } else {
+      await pool.execute(
+        `UPDATE settings
+         SET currency = COALESCE(:currency, currency),
+             language = COALESCE(:language, language),
+             decimalPlaces = COALESCE(:decimalPlaces, decimalPlaces),
+             decimalPrecision = COALESCE(:decimalPrecision, decimalPrecision),
+             dateFormat = COALESCE(:dateFormat, dateFormat),
+             theme = COALESCE(:theme, theme),
+             updatedAt = NOW()
+         WHERE id = :id`,
+        { id: existing[0].id, currency, language, decimalPlaces, decimalPrecision, dateFormat, theme }
+      );
     }
-    
-    if (updates.language && typeof updates.language !== 'string') {
-      return res.status(400).json({ error: 'Invalid language' });
-    }
-    
-    if (updates.decimalPlaces && 
-        (typeof updates.decimalPlaces !== 'number' || 
-         updates.decimalPlaces < 0 || 
-         updates.decimalPlaces > 8)) {
-      return res.status(400).json({ error: 'Invalid decimal places' });
-    }
-    
-    // Update settings
-    data.settings = {
-      ...data.settings,
-      ...updates,
-      updatedAt: new Date().toISOString()
-    };
-    
-    await writeData(data);
-    
-    res.json(data.settings);
+
+    const [rows] = await pool.query('SELECT * FROM settings ORDER BY id ASC LIMIT 1');
+    res.json(rows[0]);
   } catch (error) {
     console.error('Error updating settings:', error);
     res.status(500).json({ error: 'Failed to update settings' });
   }
 });
 
-// Import/Export
+/* -------------------- EXPORT / IMPORT -------------------- */
+
 app.get('/api/export', async (req, res) => {
   try {
+    const [tx] = await pool.query(`SELECT * FROM transactions ORDER BY date DESC, createdAt DESC`);
+    const [cats] = await pool.query(`SELECT * FROM categories ORDER BY name ASC`);
+    const [setts] = await pool.query(`SELECT * FROM settings ORDER BY id ASC LIMIT 1`);
+
+    const payload = {
+      transactions: tx,
+      categories: cats,
+      settings: setts || null
+    };
+
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', 'attachment; filename=expense-tracker-export.json');
-    res.send(JSON.stringify(data, null, 2));
+    res.send(JSON.stringify(payload, null, 2));
   } catch (error) {
     console.error('Error exporting data:', error);
     res.status(500).json({ error: 'Failed to export data' });
@@ -366,84 +349,85 @@ app.get('/api/export', async (req, res) => {
 });
 
 app.post('/api/import', async (req, res) => {
+  const conn = await pool.getConnection();
   try {
-    const importData = req.body;
-    
-    // Validate import data
-    if (!importData || typeof importData !== 'object') {
-      return res.status(400).json({ error: 'Invalid import data' });
+    const { transactions, categories, settings } = req.body || {};
+    await conn.beginTransaction();
+
+    if (Array.isArray(categories)) {
+      await conn.query('DELETE FROM categories');
+      if (categories.length) {
+        const rows = categories.map(c => [c.id, c.name, c.type, c.color ?? '#6c757d', c.updatedAt?.slice(0,19).replace('T',' ') ?? null]);
+        await conn.query(
+          `INSERT INTO categories (id, name, type, color, updatedAt) VALUES ?`,
+          [rows]
+        );
+      }
     }
-    
-    // Backup current data
-    const backup = { ...data };
-    
-    try {
-      // Update data with imported data
-      if (Array.isArray(importData.transactions)) {
-        data.transactions = importData.transactions;
+
+    if (Array.isArray(transactions)) {
+      await conn.query('DELETE FROM transactions');
+      if (transactions.length) {
+        const rows = transactions.map(t => [
+          String(t.id),
+          t.type,
+          Number(t.amount),
+          t.category,
+          (t.date || new Date().toISOString().slice(0,10)).slice(0,10),
+          t.note ?? '',
+          t.description ?? '',
+          t.createdAt ? t.createdAt.slice(0,19).replace('T',' ') : null,
+          t.updatedAt ? t.updatedAt.slice(0,19).replace('T',' ') : null
+        ]);
+        await conn.query(
+          `INSERT INTO transactions
+           (id, type, amount, category, date, note, description, createdAt, updatedAt)
+           VALUES ?`,
+          [rows]
+        );
       }
-      
-      if (Array.isArray(importData.categories)) {
-        data.categories = importData.categories;
-      }
-      
-      if (importData.settings && typeof importData.settings === 'object') {
-        data.settings = {
-          ...data.settings,
-          ...importData.settings
-        };
-      }
-      
-      // Save imported data
-      await writeData(data);
-      
-      res.json({ message: 'Data imported successfully' });
-    } catch (error) {
-      // Restore backup if import fails
-      data = backup;
-      await writeData(data);
-      throw error;
     }
+
+    if (settings && typeof settings === 'object') {
+      await conn.query('DELETE FROM settings');
+      await conn.query(
+        `INSERT INTO settings (currency, dateFormat, language, decimalPlaces, decimalPrecision, theme, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          settings.currency ?? 'USD',
+          settings.dateFormat ?? 'YYYY-MM-DD',
+          settings.language ?? 'en',
+          settings.decimalPlaces ?? 2,
+          settings.decimalPrecision ?? 2,
+          settings.theme ?? 'system',
+          (settings.updatedAt ? settings.updatedAt.slice(0,19).replace('T',' ') : null)
+        ]
+      );
+    }
+
+    await conn.commit();
+    res.json({ message: 'Data imported successfully' });
   } catch (error) {
+    await conn.rollback();
     console.error('Error importing data:', error);
     res.status(500).json({ error: 'Failed to import data' });
+  } finally {
+    conn.release();
   }
 });
 
-// Serve the main HTML file for any other GET request
+// SPA fallback
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Error handling middleware
+// Errors
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
-  res.status(500).json({ 
-    error: 'Internal server error',
-    message: err.message 
-  });
+  res.status(500).json({ error: 'Internal server error', message: err.message });
 });
 
-// Start the server
+// Start
 app.listen(port, '0.0.0.0', () => {
   console.log(`Server is running on http://localhost:${port}`);
-  console.log('Data file:', DATA_FILE);
 });
-
-// Handle process termination
-process.on('SIGINT', async () => {
-  console.log('Shutting down server...');
-  process.exit(0);
-});
-
-process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
-  process.exit(1);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  process.exit(1);
-});
-
-export default app;

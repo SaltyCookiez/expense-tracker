@@ -11,7 +11,9 @@
   },
   "dependencies": {
     "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
     "express": "^4.18.2",
+    "mysql2": "^3.14.5",
     "uuid": "^11.1.0"
   },
   "devDependencies": {
